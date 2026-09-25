@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Wedding Game</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }</script>
+</head>
+<body>
+<!--UI-->
+<div id="app"></div>
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="letterbox"><div class="bar top"></div><div class="bar bottom"></div></div>
+
+<div id="hud" class="hidden">
+  <div id="checklist">
+    <div class="cl-title">Mom's Checklist <span id="cl-count"></span></div>
+    <ul id="cl-items"></ul>
+  </div>
+  <div id="meter" class="hidden">
+    <div class="m-label">WEDDING INTEGRITY</div>
+    <div class="m-bar"><div id="m-fill"></div></div>
+    <div class="m-damage">Damages: <span id="m-dmg">$0</span></div>
+  </div>
+  <div id="beat" class="hidden"><div class="beat-num"></div><div class="beat-title"></div></div>
+  <div id="prompt" class="hidden"><span class="key">E</span><span id="prompt-text"></span></div>
+  <div id="qte" class="hidden"><div class="qte-key">E</div><div id="qte-text"></div><div class="qte-bar"><div id="qte-fill"></div></div></div>
+  <div id="subtitle" class="hidden"><span id="sub-name"></span><span id="sub-text"></span></div>
+  <div id="bubbles"></div>
+  <div id="toasts"></div>
+  <div id="hint" class="hidden"></div>
+  <div id="choice" class="hidden"><div class="ch-title"></div><div class="ch-list"></div></div>
+  <div id="danceoff" class="hidden">
+    <div class="do-title">DANCE-OFF</div>
+    <div class="do-lane"><div id="do-ring"></div><div id="do-arrow"></div></div>
+    <div id="do-grade" class="do-grade"></div>
+    <div id="do-score" class="do-score"></div>
+    <div class="do-help">Press the arrow (or WASD) when the ring closes, on the beat</div>
+    <div class="do-pad touch-only"><button data-dir="left">◀</button><button data-dir="up">▲</button><button data-dir="down">▼</button><button data-dir="right">▶</button></div>
+  </div>
+  <button id="touch-e" class="touch-only hidden">E</button>
+  <button id="touch-pause" class="touch-only">❚❚</button>
+  <div id="crosshint">WASD move · Shift run · Mouse look (click) · E interact · C snapshot · Space fast-forward cutscenes · Esc pause</div>
+</div>
+
+<div id="loading" class="screen">
+  <div class="load-inner">
+    <div class="logo small">A Wedding Game</div>
+    <div class="load-bar"><div id="load-fill"></div></div>
+    <div id="load-text">Polishing the champagne glasses…</div>
+  </div>
+</div>
+
+<div id="title" class="screen hidden">
+  <div class="title-card">
+    <div class="logo">A Wedding Game</div>
+    <div class="tagline">Tie the knot. <em>The happiest day of your life.</em></div>
+    <div id="title-stats" class="title-stats hidden"></div>
+    <div class="form">
+      <div class="row names">
+        <label>Bride's name<input id="in-bride" maxlength="16" value="Alice"></label>
+        <label>Groom's name (you)<input id="in-groom" maxlength="16" value="Bob"></label>
+      </div>
+      <div class="bride-custom">
+        <div class="face-preview"><img id="face-img" alt="face preview"></div>
+        <div class="face-controls">
+          <div class="fc-title">Customize the <span class="who-switch"><button id="who-bride" class="on" data-who="bride">bride</button><button id="who-groom" data-who="groom">groom</button></span> face <span class="opt">(optional)</span></div>
+          <textarea id="in-face" rows="2" placeholder="e.g. freckles, curly red hair, big round glasses, huge grin"></textarea>
+          <div class="fc-buttons">
+            <button id="btn-gen" class="btn small">✨ Generate (ComfyUI)</button>
+            <label class="btn small ghost">📷 Upload photo<input id="in-upload" type="file" accept="image/*" hidden></label>
+            <button id="btn-photo-comfy" class="btn small hidden" title="Remove the photo's background and make the expressions and back view with ComfyUI">🪄 Process photo (ComfyUI)</button>
+            <button id="btn-reset-face" class="btn small ghost">↺ Default</button>
+          </div>
+          <div id="gen-status" class="gen-status"></div>
+          <details id="comfy-settings" class="adv"><summary>ComfyUI settings</summary>
+            <label>Server URL <input id="in-comfy" value="http://127.0.0.1:8188"></label>
+            <div class="note">Uses a local ComfyUI. When served with <code>node serve.js</code> it's reached through a built-in proxy; otherwise start ComfyUI with <code>--enable-cors-header "*"</code>. Generating also makes the expressions the story needs (shocked, crying…) and a back-of-head view if the server has an image-edit model (Qwen-Image 2.1 or Qwen-Image-Edit). An uploaded photo can be processed the same way: cut out on a transparent background, with its own expressions and back view. No ComfyUI? No problem: the default faces (or your upload) work offline.</div>
+          </details>
+        </div>
+      </div>
+      <button id="btn-start" class="btn big">💍 Get Married</button>
+      <div class="controls-note">WASD / arrows to walk · Shift to run · Mouse to look · <b>E</b> to interact · Touch: left half moves, right half looks, tap E</div>
+    </div>
+  </div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <div class="panel">
+    <div class="logo small">Paused</div>
+    <div class="panel-sub">The wedding will wait. Your guests, less so.</div>
+    <label class="vol">Volume <input id="in-vol" type="range" min="0" max="1" step="0.05" value="0.8"></label>
+    <details class="settings"><summary>Settings</summary>
+      <label class="set"><input id="set-calm" type="checkbox"> Reduce flashes &amp; screen shake</label>
+      <label class="set"><input id="set-invert" type="checkbox"> Invert mouse Y</label>
+      <label class="set"><input id="set-subs" type="checkbox"> Large subtitles</label>
+      <label class="set"><input id="set-marker" type="checkbox"> Checklist marker</label>
+      <label class="set range">Mouse sensitivity <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label>
+    </details>
+    <button id="btn-resume" class="btn">Resume</button>
+    <button id="btn-skip" class="btn ghost hidden">Skip to the invoice</button>
+    <button id="btn-restart" class="btn ghost">Restart</button>
+    <button id="btn-menu" class="btn ghost">Main menu</button>
+  </div>
+</div>
+
+<div id="ending" class="screen hidden">
+  <div class="invoice">
+    <div class="inv-head">
+      <div>
+        <div class="inv-title">INVOICE</div>
+        <div class="inv-sub">Sunset Gardens Wedding Venue &amp; Emergency Services</div>
+      </div>
+      <div class="inv-stamp">PAST DUE</div>
+    </div>
+    <div class="inv-to">Bill to: <b id="inv-to"></b> (groom, allegedly)</div>
+    <table id="inv-table"></table>
+    <div class="inv-total">TOTAL DUE: <span id="inv-total"></span></div>
+    <div id="inv-epilogue" class="inv-epilogue"></div>
+    <div id="inv-ending" class="inv-ending"></div>
+    <div id="album-wrap" class="hidden">
+      <div class="inv-ach-title">Wedding album</div>
+      <div id="inv-album" class="inv-album"></div>
+      <button id="btn-album" class="btn small ghost">📷 Save the album</button>
+    </div>
+    <div class="inv-ach-title">Achievements</div>
+    <div id="inv-ach" class="inv-ach"></div>
+    <div class="inv-buttons">
+      <button id="btn-again" class="btn">💍 Try again (it won't help)</button>
+      <button id="btn-title" class="btn ghost">Change the bride</button>
+    </div>
+  </div>
+</div>
+
+<div id="err" class="hidden"></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
