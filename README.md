@@ -6,6 +6,8 @@ project, but it turned out to be fun enough that sharing it seemed worthwhile.
 A short (5–8 min), replayable comedy game in three.js. You're the groom at a golden-hour garden wedding.
 Work through Mom's checklist, pet the dog, and cue the flutist when you're ready.
 
+![screenshot](screenshot.jpg)
+
 ## Play
 
 | How | What to do |
